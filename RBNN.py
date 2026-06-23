@@ -60,7 +60,7 @@ def one_hot(y, num_classes=10):
 input_size  = 784
 output_size = 10
 
-layer_sizes = [784,256,246, 10]  
+layer_sizes = [784,256,256, 10]  
 number_layers = len(layer_sizes) - 1
 lr         = 0.09  
 epochs     = 100
@@ -94,6 +94,20 @@ Vw     = [np.zeros_like(w) for w in W]
 Vb     = [np.zeros_like(bi) for bi in b]
 Vgamma = [np.zeros_like(g) for g in gamma_list]   
 Vbeta  = [np.zeros_like(bt) for bt in beta_list]  
+#Rotate Matrix
+rotation_matrices = []
+
+for i in range(number_layers):
+    rows = layer_sizes[i]
+
+    R = np.random.randn(rows, rows)
+    Q, _ = np.linalg.qr(R)
+
+    rotation_matrices.append(Q)
+def rotate_weight(W, layer_idx):
+    alpha = 0.05
+    return (1 - alpha) * W + alpha * (rotation_matrices[layer_idx] @ W)
+
 
 # FORWARD PROPAGATION
 
@@ -103,7 +117,7 @@ def feedforward(X, W_arg, b_arg, gamma_arg, beta_arg, training=True):
     caches     = []   
     bn_outputs = []   
     for i in range(number_layers):
-        W_bin = binarize(W_arg[i])
+        W_bin = binarize(rotate_weight(W_arg[i],i))
         z = W_bin.T @ h[-1] + b_arg[i]
         z_values.append(z)
 
@@ -141,7 +155,7 @@ def backpropagation(h, y_true, z_values, caches, bn_outputs,
         W[k]  = np.clip(W[k], -1, 1)
 
         if k > 0:
-            W_bin_next = binarize(W_arg[k])
+            W_bin_next = binarize(rotate_weight(W_arg[k], k))
             G = W_bin_next @ dz                             
             ste_mask = (np.abs(bn_outputs[k - 1]) <= 1).astype(float)
             G *= ste_mask                    
@@ -228,12 +242,13 @@ def train(X, y, X_test, y_test):
 
 # LOAD TEST DATA & RUN
 
-y_test = idx2np.convert_from_file(
-    r"/home/saurav/Lokesh/IIT-M-internship/t10k-labels.idx1-ubyte"
-)
 x_test = idx2np.convert_from_file(
     r"/home/saurav/Lokesh/IIT-M-internship/t10k-images.idx3-ubyte"
 )
+y_test = idx2np.convert_from_file(
+    r"/home/saurav/Lokesh/IIT-M-internship/t10k-labels.idx1-ubyte"
+)
+
 x_test = x_test.reshape(x_test.shape[0], -1).T / 255.0
 
 train(x, y, x_test, y_test)
